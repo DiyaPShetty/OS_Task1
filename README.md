@@ -1,6 +1,6 @@
 # 🧵 OS_Task1 – Multithreading Assignment
 
-> Producer-Consumer in Java and 100 × 100 TensorFlow matrix multiplication with animation.
+> **Implementation of the Producer-Consumer problem using Java threads and 100 × 100 matrix multiplication using TensorFlow with animated visualization.**
 
 ---
 
@@ -76,16 +76,15 @@ After an item is produced or consumed, `notifyAll()` is used to wake the waiting
 
 ## ▶️ How to Run Program 1
 
-Run directly:
-
-```bash
-java ProducerConsumer.java
-```
-
-Or compile and run:
+Compile the Java program:
 
 ```bash
 javac ProducerConsumer.java
+```
+
+Run the program:
+
+```bash
 java ProducerConsumer
 ```
 
@@ -194,12 +193,10 @@ Matrix A          Matrix B          Result Matrix C
 During the animation:
 
 - 🔵 **Matrix A** – a horizontal black line indicates the current row.
-- 🟢 **Matrix B** – a vertical black line indicates the current column.
+- 🟢 **Matrix B** – a vertical black line indicates a column.
 - 🟠 **Matrix C** – the resultant matrix is filled progressively.
 
-This visually demonstrates:
-
-> **Row of Matrix A × Column of Matrix B → Result Matrix C**
+The visualization demonstrates how **rows of Matrix A are multiplied with the columns of Matrix B to form Matrix C**.
 
 ---
 
@@ -222,19 +219,19 @@ matrix_multiplication.gif
 
 Python **3.10** is used.
 
-### Create virtual environment
+### Create a virtual environment
 
 ```bash
 py -3.10 -m venv .venv
 ```
 
-### Activate virtual environment
+### Activate the virtual environment
 
 ```bash
 .\.venv\Scripts\Activate.ps1
 ```
 
-### Install required libraries
+### Install the required libraries
 
 ```bash
 pip install tensorflow numpy matplotlib imageio-ffmpeg
@@ -278,6 +275,14 @@ matrix_multiplication_100x100.mp4
 
 Program completed.
 ```
+
+---
+
+## ✅ Verification
+
+After the animation is generated, the animated result is compared with the TensorFlow result.
+
+This confirms that the values displayed during the animation match the actual matrix multiplication output.
 
 ---
 
