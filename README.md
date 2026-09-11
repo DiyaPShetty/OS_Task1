@@ -1,6 +1,6 @@
 # 🧵 OS_Task1 – Multithreading Assignment
 
-> **Implementation of the Producer-Consumer problem using Java threads and 100 × 100 matrix multiplication using TensorFlow with animated visualization.**
+> **Implementation of the Producer-Consumer problem using Java threads and 100 × 100 matrix multiplication using Python threads and TensorFlow with animated visualization.**
 
 ---
 
@@ -9,7 +9,7 @@
 This repository contains two programs:
 
 1. **Producer-Consumer Problem using Java Threads**
-2. **100 × 100 Matrix Multiplication using TensorFlow with Animation**
+2. **100 × 100 Matrix Multiplication using Threads + TensorFlow with Animation**
 
 ---
 
@@ -18,7 +18,7 @@ This repository contains two programs:
 | File | Description |
 |------|-------------|
 | `ProducerConsumer.java` | Producer-Consumer problem using Java threads |
-| `matrix_multiplication.py` | 100 × 100 matrix multiplication using TensorFlow |
+| `matrix_multiplication.py` | 100 × 100 matrix multiplication using Python threads and TensorFlow |
 | `matrix_multiplication_100x100.mp4` | MP4 animation of matrix multiplication |
 | `matrix_multiplication.gif` | GIF animation of matrix multiplication |
 | `README.md` | Documentation for both programs |
@@ -116,11 +116,11 @@ Producer Consumer finished
 
 ---
 
-# 2️⃣ Program 2 – 100 × 100 Matrix Multiplication using TensorFlow
+# 2️⃣ Program 2 – 100 × 100 Matrix Multiplication using Threads + TensorFlow
 
 ## 📌 Description
 
-The second program performs multiplication of two matrices of size **100 × 100**.
+The second program performs multiplication of two matrices of size **100 × 100** using Python threads and TensorFlow.
 
 The matrices are:
 
@@ -136,13 +136,15 @@ The operation is:
 Matrix A × Matrix B = Matrix C
 ```
 
-TensorFlow is used to perform the matrix multiplication.
+The program uses `ThreadPoolExecutor` for threaded execution and TensorFlow for the numerical calculations.
 
 ---
 
 ## 🔹 Concepts and Technologies Used
 
 - Python
+- ThreadPoolExecutor
+- Multithreading
 - TensorFlow
 - NumPy
 - Matrix Multiplication
@@ -154,17 +156,22 @@ TensorFlow is used to perform the matrix multiplication.
 
 ## ⚙️ Approach
 
-Two random **100 × 100 matrices** are generated using NumPy.
+Two random **100 × 100 matrices** are generated using NumPy and converted into TensorFlow tensors.
 
-The matrices are converted into TensorFlow tensors.
+The result matrix contains:
 
-The multiplication is performed using:
+**100 × 100 = 10,000 cells**
 
-```python
-C = tf.matmul(A, B)
-```
+A `ThreadPoolExecutor` with multiple worker threads is used to perform the matrix multiplication.
 
-For each value in the resultant matrix, one row of Matrix A is multiplied with one column of Matrix B.
+Each result cell `C[i][j]` is submitted as a separate threaded task.
+
+For every result cell:
+
+- one row from Matrix A is selected
+- one column from Matrix B is selected
+- TensorFlow performs element-wise multiplication
+- `tf.reduce_sum()` adds the multiplied values
 
 Conceptually:
 
@@ -179,30 +186,33 @@ A[i][1] × B[1][j]
 A[i][99] × B[99][j]
 ```
 
+Since the result matrix contains **100 × 100 cells**, the program creates **10,000 threaded cell tasks**.
+
+The order in which the threaded tasks finish is recorded and later used for the animation.
+
+A normal TensorFlow `tf.matmul()` result is also calculated at the end only to verify that the threaded result is correct.
+
 ---
 
 ## 🎬 Animation
 
-The animation displays the three matrices separately:
+The animation displays three matrices:
 
-```text
-Matrix A          Matrix B          Result Matrix C
-100 × 100    ×    100 × 100    =      100 × 100
-```
+- **Matrix A** – a horizontal indicator shows the current row.
+- **Matrix B** – a vertical indicator shows the current column.
+- **Matrix C** – the result cells are filled progressively.
 
-During the animation:
+The animation uses the recorded completion order of the threaded cell calculations.
 
-- 🔵 **Matrix A** – a horizontal black line indicates the current row.
-- 🟢 **Matrix B** – a vertical black line indicates a column.
-- 🟠 **Matrix C** – the resultant matrix is filled progressively.
+This visually demonstrates:
 
-The visualization demonstrates how **rows of Matrix A are multiplied with the columns of Matrix B to form Matrix C**.
+> **Row of Matrix A × Column of Matrix B → Result Cell in Matrix C**
 
 ---
 
 ## 🎥 Animation Output
 
-The generated files are:
+The program generates:
 
 ```text
 matrix_multiplication_100x100.mp4
@@ -234,7 +244,7 @@ py -3.10 -m venv .venv
 ### Install the required libraries
 
 ```bash
-pip install tensorflow numpy matplotlib imageio-ffmpeg
+pip install tensorflow numpy matplotlib imageio-ffmpeg pillow
 ```
 
 ---
@@ -250,28 +260,26 @@ python matrix_multiplication.py
 ## 🖥️ Sample Output
 
 ```text
-TensorFlow Matrix Multiplication
---------------------------------
+Threaded matrix multiplication started
+--------------------------------------
+Matrix size: 100 x 100
+Threads used: 8
+Total cell tasks: 10000
 
-Matrix A shape: (100, 100)
-Matrix B shape: (100, 100)
-Result shape  : (100, 100)
+Matrix multiplication completed
 
-First 5 x 5 values of Matrix A:
-[...]
+A size: (100, 100)
+B size: (100, 100)
+C size: (100, 100)
 
-First 5 x 5 values of Matrix B:
-[...]
+Threaded result verified successfully.
+Completed threaded cell tasks: 10000
 
-First 5 x 5 values of Result Matrix:
-[...]
+Creating MP4 animation...
+MP4 created successfully.
 
-Creating matrix multiplication video...
-
-Result verified successfully.
-
-Video file:
-matrix_multiplication_100x100.mp4
+Creating GIF animation...
+GIF created successfully.
 
 Program completed.
 ```
@@ -280,9 +288,15 @@ Program completed.
 
 ## ✅ Verification
 
-After the animation is generated, the animated result is compared with the TensorFlow result.
+The threaded result is compared with a normal TensorFlow `tf.matmul()` result.
 
-This confirms that the values displayed during the animation match the actual matrix multiplication output.
+If both results match, the program displays:
+
+```text
+Threaded result verified successfully.
+```
+
+This confirms that the threaded matrix multiplication has produced the correct result.
 
 ---
 
@@ -298,6 +312,8 @@ This confirms that the values displayed during the animation match the actual ma
 ## Program 2
 
 - Python
+- ThreadPoolExecutor
+- Multithreading
 - TensorFlow
 - NumPy
 - Matplotlib
@@ -310,6 +326,6 @@ This confirms that the values displayed during the animation match the actual ma
 
 The first program demonstrates **thread synchronization using the Producer-Consumer problem in Java**.
 
-The second program performs **100 × 100 matrix multiplication using TensorFlow** and provides an animated visualization of:
+The second program performs **100 × 100 matrix multiplication using Python threads and TensorFlow**.
 
-> **Matrix A × Matrix B = Result Matrix C**
+Each result cell is calculated as a separate threaded task, and the animation shows the result matrix being constructed according to the recorded threaded computation.
