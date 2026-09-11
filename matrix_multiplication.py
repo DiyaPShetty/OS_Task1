@@ -4,73 +4,150 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation, FFMpegWriter
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
 from matplotlib.patches import Rectangle
 import imageio_ffmpeg
 
 
 N = 100
-OUTPUT_VIDEO = "matrix_multiplication_100x100.mp4"
+THREADS = 8
+
+VIDEO_FILE = "matrix_multiplication_100x100.mp4"
+GIF_FILE = "matrix_multiplication.gif"
 
 plt.rcParams["animation.ffmpeg_path"] = imageio_ffmpeg.get_ffmpeg_exe()
 
 
 def build_matrices():
-    rng = np.random.default_rng(10)
 
-    a_values = rng.integers(
+    random_gen = np.random.default_rng(10)
+
+    matrix_a = random_gen.integers(
         1, 10, size=(N, N)
     )
 
-    b_values = rng.integers(
+    matrix_b = random_gen.integers(
         1, 10, size=(N, N)
     )
 
-    a_tensor = tf.convert_to_tensor(
-        a_values,
+    tensor_a = tf.convert_to_tensor(
+        matrix_a,
         dtype=tf.float32
     )
 
-    b_tensor = tf.convert_to_tensor(
-        b_values,
+    tensor_b = tf.convert_to_tensor(
+        matrix_b,
         dtype=tf.float32
     )
 
-    return a_values, b_values, a_tensor, b_tensor
+    return matrix_a, matrix_b, tensor_a, tensor_b
 
 
-def print_sample(a, b, c):
-    print("\nMatrix multiplication using TensorFlow")
+def calculate_cell(row_index, column_index, tensor_a, tensor_b):
+
+    row = tensor_a[row_index]
+    column = tensor_b[:, column_index]
+
+    multiplied_values = row * column
+
+    cell_value = tf.reduce_sum(
+        multiplied_values
+    )
+
+    return row_index, column_index, float(cell_value.numpy())
+
+
+def multiply_with_threads(tensor_a, tensor_b):
+
+    result = np.zeros(
+        (N, N),
+        dtype=np.float32
+    )
+
+    finished_cells = []
+
+    print("\nThreaded matrix multiplication started")
     print("--------------------------------------")
+    print("Matrix size:", N, "x", N)
+    print("Threads used:", THREADS)
+    print("Total cell tasks:", N * N)
 
-    print("A size:", a.shape)
-    print("B size:", b.shape)
-    print("C size:", c.shape)
+    with ThreadPoolExecutor(
+        max_workers=THREADS
+    ) as executor:
+
+        tasks = []
+
+        for row in range(N):
+
+            for column in range(N):
+
+                task = executor.submit(
+                    calculate_cell,
+                    row,
+                    column,
+                    tensor_a,
+                    tensor_b
+                )
+
+                tasks.append(task)
+
+        for task in as_completed(tasks):
+
+            row, column, value = task.result()
+
+            result[row, column] = value
+
+            finished_cells.append(
+                (row, column, value)
+            )
+
+    return result, finished_cells
+
+
+def print_sample(matrix_a, matrix_b, result):
+
+    print("\nMatrix multiplication completed")
+    print("--------------------------------")
+
+    print("A size:", matrix_a.shape)
+    print("B size:", matrix_b.shape)
+    print("C size:", result.shape)
 
     print("\nA sample:")
-    print(a[:5, :5])
+    print(matrix_a[:5, :5])
 
     print("\nB sample:")
-    print(b[:5, :5])
+    print(matrix_b[:5, :5])
 
     print("\nC sample:")
-    print(c[:5, :5])
+    print(result[:5, :5])
 
 
 class MatrixAnimator:
 
-    def __init__(self, a_np, b_np, a_tf, b_tf, c_np):
+    def __init__(
+        self,
+        matrix_a,
+        matrix_b,
+        result,
+        finished_cells
+    ):
 
-        self.a_np = a_np
-        self.b_np = b_np
-        self.a_tf = a_tf
-        self.b_tf = b_tf
-        self.c_np = c_np
+        self.matrix_a = matrix_a
+        self.matrix_b = matrix_b
+        self.result = result
+        self.finished_cells = finished_cells
 
-        self.partial = np.zeros(
+        self.visible_result = np.full(
             (N, N),
+            np.nan,
             dtype=np.float32
         )
+
+        self.cells_in_one_frame = 50
 
         self.fig, axes = plt.subplots(
             1, 3, figsize=(16, 7)
@@ -86,13 +163,13 @@ class MatrixAnimator:
             wspace=0.35
         )
 
-        self.prepare_axes()
+        self.prepare_display()
 
 
-    def prepare_axes(self):
+    def prepare_display(self):
 
         self.ax_a.imshow(
-            self.a_np,
+            self.matrix_a,
             aspect="auto"
         )
 
@@ -105,7 +182,7 @@ class MatrixAnimator:
 
 
         self.ax_b.imshow(
-            self.b_np,
+            self.matrix_b,
             aspect="auto"
         )
 
@@ -117,11 +194,13 @@ class MatrixAnimator:
         self.ax_b.set_ylabel("Rows")
 
 
-        self.result_view = self.ax_c.imshow(
-            self.partial,
+        self.result_image = self.ax_c.imshow(
+            np.ma.masked_invalid(
+                self.visible_result
+            ),
             aspect="auto",
-            vmin=0,
-            vmax=np.max(self.c_np)
+            vmin=np.min(self.result),
+            vmax=np.max(self.result)
         )
 
         self.ax_c.set_title(
@@ -132,7 +211,7 @@ class MatrixAnimator:
         self.ax_c.set_ylabel("Rows")
 
 
-        self.a_marker = Rectangle(
+        self.row_box = Rectangle(
             (-0.5, -0.5),
             N,
             1,
@@ -141,7 +220,7 @@ class MatrixAnimator:
             linewidth=2.5
         )
 
-        self.b_marker = Rectangle(
+        self.column_box = Rectangle(
             (-0.5, -0.5),
             1,
             N,
@@ -150,25 +229,35 @@ class MatrixAnimator:
             linewidth=2.5
         )
 
-        self.c_marker = Rectangle(
+        self.result_box = Rectangle(
             (-0.5, -0.5),
-            N,
+            1,
             1,
             fill=False,
             edgecolor="black",
             linewidth=2.5
         )
 
-        self.ax_a.add_patch(self.a_marker)
-        self.ax_b.add_patch(self.b_marker)
-        self.ax_c.add_patch(self.c_marker)
+
+        self.ax_a.add_patch(
+            self.row_box
+        )
+
+        self.ax_b.add_patch(
+            self.column_box
+        )
+
+        self.ax_c.add_patch(
+            self.result_box
+        )
 
 
         self.fig.suptitle(
-            "100 × 100 TensorFlow Matrix Multiplication",
-            fontsize=20,
+            "100 × 100 Threaded TensorFlow Matrix Multiplication",
+            fontsize=19,
             fontweight="bold"
         )
+
 
         self.fig.text(
             0.345,
@@ -189,138 +278,211 @@ class MatrixAnimator:
         )
 
 
-        self.status = self.fig.text(
+        self.status_text = self.fig.text(
             0.5,
             0.11,
             "Preparing animation...",
             ha="center",
-            fontsize=14,
+            fontsize=13,
             fontweight="bold"
         )
 
-        self.detail = self.fig.text(
+        self.cell_text = self.fig.text(
             0.5,
             0.06,
             "",
             ha="center",
-            fontsize=12
+            fontsize=11
         )
 
 
-    def draw_frame(self, step):
+    def draw_frame(self, frame_number):
 
-        row_index = step
-
-        selected_row = self.a_tf[
-            row_index:row_index + 1
-        ]
-
-        computed_row = tf.matmul(
-            selected_row,
-            self.b_tf
+        start = (
+            frame_number
+            * self.cells_in_one_frame
         )
 
-        self.partial[
-            row_index
-        ] = computed_row.numpy()[0]
-
-        self.result_view.set_data(
-            self.partial
+        end = min(
+            start + self.cells_in_one_frame,
+            len(self.finished_cells)
         )
 
-        self.a_marker.set_y(
-            row_index - 0.5
+        current_row = 0
+        current_column = 0
+
+        for index in range(start, end):
+
+            row, column, value = self.finished_cells[
+                index
+            ]
+
+            self.visible_result[
+                row, column
+            ] = value
+
+            current_row = row
+            current_column = column
+
+
+        self.result_image.set_data(
+            np.ma.masked_invalid(
+                self.visible_result
+            )
         )
 
-        self.b_marker.set_x(
-            row_index - 0.5
+
+        self.row_box.set_y(
+            current_row - 0.5
         )
 
-        self.c_marker.set_y(
-            row_index - 0.5
+        self.column_box.set_x(
+            current_column - 0.5
         )
 
-        self.status.set_text(
-            f"Step {row_index + 1} / {N}"
+        self.result_box.set_xy(
+            (
+                current_column - 0.5,
+                current_row - 0.5
+            )
         )
 
-        self.detail.set_text(
-            f"Using row {row_index + 1} from A "
-            f"with columns of B to form row {row_index + 1} of C"
+
+        self.status_text.set_text(
+            f"Completed cells: {end} / {N * N}"
         )
+
+        self.cell_text.set_text(
+            f"Current cell: "
+            f"C[{current_row}][{current_column}]"
+        )
+
 
         return (
-            self.result_view,
-            self.a_marker,
-            self.b_marker,
-            self.c_marker,
-            self.status,
-            self.detail
+            self.result_image,
+            self.row_box,
+            self.column_box,
+            self.result_box,
+            self.status_text,
+            self.cell_text
         )
 
 
-    def save_video(self):
+    def create_animation(self):
+
+        frame_count = int(
+            np.ceil(
+                len(self.finished_cells)
+                / self.cells_in_one_frame
+            )
+        )
+
 
         animation = FuncAnimation(
             self.fig,
             self.draw_frame,
-            frames=N,
-            interval=150,
+            frames=frame_count,
+            interval=100,
             repeat=False
         )
 
-        writer = FFMpegWriter(
+
+        print("\nCreating MP4 animation...")
+
+        video_writer = FFMpegWriter(
             fps=10
         )
 
-        print("\nCreating animation...")
-
         animation.save(
-            OUTPUT_VIDEO,
-            writer=writer,
+            VIDEO_FILE,
+            writer=video_writer,
             dpi=120
         )
+
+        print("MP4 created successfully.")
+
+
+        self.visible_result[:] = np.nan
+
+
+        print("\nCreating GIF animation...")
+
+        gif_writer = PillowWriter(
+            fps=10
+        )
+
+        animation.save(
+            GIF_FILE,
+            writer=gif_writer,
+            dpi=90
+        )
+
+        print("GIF created successfully.")
 
         plt.close(self.fig)
 
 
 def main():
 
-    a_np, b_np, a_tf, b_tf = build_matrices()
+    matrix_a, matrix_b, tensor_a, tensor_b = build_matrices()
 
-    c_tf = tf.matmul(
-        a_tf,
-        b_tf
+
+    threaded_result, finished_cells = multiply_with_threads(
+        tensor_a,
+        tensor_b
     )
 
-    c_np = c_tf.numpy()
 
     print_sample(
-        a_np,
-        b_np,
-        c_np
+        matrix_a,
+        matrix_b,
+        threaded_result
     )
 
-    animator = MatrixAnimator(
-        a_np,
-        b_np,
-        a_tf,
-        b_tf,
-        c_np
-    )
 
-    animator.save_video()
+    reference_result = tf.matmul(
+        tensor_a,
+        tensor_b
+    ).numpy()
+
 
     if np.allclose(
-        animator.partial,
-        c_np
+        threaded_result,
+        reference_result
     ):
-        print("\nResult verified successfully.")
-    else:
-        print("\nResult verification failed.")
 
-    print("\nVideo file:")
-    print(OUTPUT_VIDEO)
+        print(
+            "\nThreaded result verified successfully."
+        )
+
+    else:
+
+        print(
+            "\nResult verification failed."
+        )
+
+
+    print(
+        "Completed threaded cell tasks:",
+        len(finished_cells)
+    )
+
+
+    animator = MatrixAnimator(
+        matrix_a,
+        matrix_b,
+        threaded_result,
+        finished_cells
+    )
+
+    animator.create_animation()
+
+
+    print("\nGenerated files:")
+    print(VIDEO_FILE)
+    print(GIF_FILE)
+
+    print("\nProgram completed.")
 
 
 if __name__ == "__main__":
