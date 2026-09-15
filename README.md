@@ -119,14 +119,6 @@ Producer Consumer finished
 
 ## 📷 Output Screenshot
 
-Upload your Program 1 output screenshot to the repository with this filename:
-
-```text
-producer_consumer_output.png
-```
-
-Then it will appear here:
-
 ![Producer Consumer Output](producer_consumer_output.png)
 
 ---
