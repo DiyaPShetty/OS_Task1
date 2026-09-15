@@ -18,6 +18,7 @@ This repository contains two programs:
 | File | Description |
 |------|-------------|
 | `ProducerConsumer.java` | Producer-Consumer problem using Java threads |
+| `producer_consumer_output.png` | Screenshot of Producer-Consumer output |
 | `matrix_multiplication.py` | 100 × 100 matrix multiplication using Python threads and TensorFlow |
 | `matrix_multiplication_100x100.mp4` | MP4 animation of matrix multiplication |
 | `matrix_multiplication.gif` | GIF animation of matrix multiplication |
@@ -113,6 +114,20 @@ Consumed 3 -> [4, 5, 6]
 
 Producer Consumer finished
 ```
+
+---
+
+## 📷 Output Screenshot
+
+Upload your Program 1 output screenshot to the repository with this filename:
+
+```text
+producer_consumer_output.png
+```
+
+Then it will appear here:
+
+![Producer Consumer Output](producer_consumer_output.png)
 
 ---
 
